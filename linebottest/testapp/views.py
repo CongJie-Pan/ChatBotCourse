@@ -12,7 +12,7 @@ from linebot import LineBotApi, WebhookParser
 
 # Import exception classes: InvalidSignatureError for signature validation errors, LineBotApiError for API request failures
 from linebot.exceptions import InvalidSignatureError, LineBotApiError
-from linebot.models import MessageEvent, TextSendMessage, TextMessage, ImageSendMessage, StickerSendMessage
+from linebot.models import MessageEvent, TextSendMessage, TextMessage, ImageSendMessage, StickerSendMessage, LocationSendMessage, QuickReply, QuickReplyButton, MessageAction
 
 line_bot_api = LineBotApi(settings.LINE_CHANNEL_ACCESS_TOKEN)
 parser = WebhookParser(settings.LINE_CHANNEL_SECRET)
@@ -74,11 +74,19 @@ def callback(request):
                     sendStick(event)
                 
                 elif mtext == '@多項傳送':
-                    line_bot_api.reply_message(event.reply_token, TextSendMessage(text='case 4'))
+                    # line_bot_api.reply_message(event.reply_token, TextSendMessage(text='case 4'))
+
+                    sendMulti(event)
+                
                 elif mtext == '@傳送位置':
-                    line_bot_api.reply_message(event.reply_token, TextSendMessage(text='case 5'))
+                    # line_bot_api.reply_message(event.reply_token, TextSendMessage(text='case 5'))
+
+                    sendPosition(event)
+
                 elif mtext == '@快速選單':
-                    line_bot_api.reply_message(event.reply_token, TextSendMessage(text='case 6'))
+                    # line_bot_api.reply_message(event.reply_token, TextSendMessage(text='case 6'))
+
+                    sendQuickreply(event)
                 else:
                     # Echo the received text message if no specific command is matched
                     line_bot_api.reply_message(event.reply_token, TextSendMessage(text=mtext))
@@ -155,3 +163,101 @@ def sendStick(event):
         
         # Send an error message back to the user
         line_bot_api.reply_message(event.reply_token, TextSendMessage(text='An error occurred while sending the sticker!'))
+
+def sendMulti(event):
+    """
+    Sends multiple types of messages (sticker, text, and image) in response to a LINE event.
+
+    Parameters:
+    - event: The LINE event object containing the reply token and message details.
+    """
+    try:
+        # Create a list of messages to send
+        message = [
+            # Send a sticker message
+            StickerSendMessage(
+                package_id='1',
+                sticker_id='2'
+            ),
+            # Send a text message
+            TextSendMessage(
+                text="這是 Pizza 圖片!"
+            ),
+            # Send an image message
+            ImageSendMessage(
+                original_content_url="https://i.imgur.com/4QfKuz1.png",
+                preview_image_url="https://i.imgur.com/4QfKuz1.png"
+            )
+        ]
+        
+        # Send the list of messages using the LINE Bot API
+        line_bot_api.reply_message(event.reply_token, message)
+    except Exception as e:
+        # Log the exception for debugging purposes
+        print(f"Error occurred: {e}")
+        
+        # Send an error message back to the user
+        line_bot_api.reply_message(event.reply_token, TextSendMessage(text='An error occurred while sending the messages!'))
+
+def sendPosition(event):
+    """
+    Sends a location message in response to a LINE event.
+
+    Parameters:
+    - event: The LINE event object containing the reply token and message details.
+    """
+    try:
+        # Create a LocationSendMessage object with the title, address, latitude, and longitude
+        message = LocationSendMessage(
+            title='北京大學',
+            address='中國北京市海淀区颐和园路5号 邮政编码: 100871',
+            latitude=39.98711025939518,  # Latitude
+            longitude=116.30591681135664  # Longitude
+        )
+        
+        # Send the location message using the LINE Bot API
+        line_bot_api.reply_message(event.reply_token, message)
+    except Exception as e:
+        # Log the exception for debugging purposes
+        print(f"Error occurred: {e}")
+        
+        # Send an error message back to the user
+        line_bot_api.reply_message(event.reply_token, TextSendMessage(text='An error occurred while sending the location!'))
+
+def sendQuickreply(event):
+    """
+    Sends a quick reply message in response to a LINE event.
+
+    Parameters:
+    - event: The LINE event object containing the reply token and message details.
+    """
+    try:
+        # Create a TextSendMessage object with quick reply options
+        message = TextSendMessage(
+            text='請選擇最喜歡的程式語言',
+            quick_reply=QuickReply(
+                items=[
+                    QuickReplyButton(
+                        action=MessageAction(label="Python", text="Python")
+                    ),
+                    QuickReplyButton(
+                        action=MessageAction(label="Java", text="Java")
+                    ),
+                    QuickReplyButton(
+                        action=MessageAction(label="C#", text="C#")
+                    ),
+                    QuickReplyButton(
+                        action=MessageAction(label="Basic", text="Basic")
+                    )
+                ]
+            )
+        )
+        
+        # Send the quick reply message using the LINE Bot API
+        line_bot_api.reply_message(event.reply_token, message)
+    except Exception as e:
+        # Log the exception for debugging purposes
+        print(f"Error occurred: {e}")
+        
+        # Send an error message back to the user
+        line_bot_api.reply_message(event.reply_token, TextSendMessage(text='An error occurred while sending the quick reply!'))
