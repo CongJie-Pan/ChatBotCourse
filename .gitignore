@@ -1,0 +1,4 @@
+# neglect the following files
+venv
+
+.env

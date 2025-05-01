@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>顯示所有資料</title>
+    <!-- Add basic styling for better appearance -->
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            line-height: 1.6;
+        }
+        h1 {
+            color: #333;
+            margin-bottom: 20px;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 20px;
+        }
+        th {
+            background-color: #f2f2f2;
+            padding: 10px;
+            text-align: left;
+        }
+        td {
+            padding: 8px;
+            border: 1px solid #ddd;
+        }
+        tr:nth-child(even) {
+            background-color: #f9f9f9;
+        }
+        tr:hover {
+            background-color: #f1f1f1;
+        }
+        .error {
+            color: red;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <h1>顯示學生資料表 {% if errormessage %}<span class="error">{{ errormessage }}</span>{% endif %}</h1>
+    
+    {% if allstudents %}
+    <table>
+        <thead>
+            <tr>
+                <th>編號</th>
+                <th>姓名</th>
+                <th>性別</th>
+                <th>生日</th>
+                <th>Email</th>
+                <th>電話</th>
+                <th>地址</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for student in allstudents %}
+            <tr>
+                <td>{{ student.id }}</td>
+                <td>{{ student.sName }}</td>
+                <td>{{ student.sSex }}</td>
+                <td>{{ student.sBirthday|date:"Y-m-d" }}</td>
+                <td>{{ student.sEmail }}</td>
+                <td>{{ student.sPhone }}</td>
+                <td>{{ student.sAddress }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <p>目前沒有學生資料可以顯示。</p>
+    {% endif %}
+</body>
+</html>

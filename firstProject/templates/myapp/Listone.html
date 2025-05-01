@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>顯示學生資料</title>
+<style>
+    body {
+        font-family: Arial, sans-serif;
+        margin: 20px;
+        line-height: 1.6;
+    }
+    h1 {
+        color: #333;
+        border-bottom: 2px solid #eee;
+        padding-bottom: 10px;
+    }
+    .error {
+        color: red;
+        font-weight: bold;
+        padding: 15px;
+        border: 1px solid #ffcccc;
+        background-color: #ffeeee;
+        border-radius: 5px;
+    }
+    .student-info {
+        margin-top: 20px;
+    }
+    .student-info h2 {
+        color: #555;
+        margin: 10px 0;
+    }
+</style>
+</head>
+<body>
+    <h1>學生資料查詢結果</h1>
+    
+    {% if errormessage %}
+    <div class="error">
+        {{ errormessage }}
+    </div>
+    {% else %}
+    <div class="student-info">
+        <h2>編號: {{unit.id}}</h2>
+        <h2>姓名: {{unit.sName}}</h2>
+        <h2>性別: {{unit.sSex}}</h2>
+        <h2>生日: {{unit.sBirthday}}</h2>
+        <h2>Email: {{unit.sEmail}}</h2>
+        <h2>電話: {{unit.sPhone}}</h2>
+        <h2>地址: {{unit.sAddress}}</h2>
+    </div>
+    {% endif %}
+</body>
+</html>
