@@ -10,9 +10,12 @@ from django.views.decorators.csrf import csrf_exempt
 # Import LINE Bot SDK core classes: LineBotApi to send replies, WebhookParser to parse incoming webhooks
 from linebot import LineBotApi, WebhookParser
 
+# Import urllib.parse to parse query parameters
+from urllib.parse import parse_qsl
+
 # Import exception classes: InvalidSignatureError for signature validation errors, LineBotApiError for API request failures
 from linebot.exceptions import InvalidSignatureError, LineBotApiError
-from linebot.models import MessageEvent, TextSendMessage, TextMessage, ImageSendMessage, StickerSendMessage, LocationSendMessage, QuickReply, QuickReplyButton, MessageAction
+from linebot.models import MessageEvent, TextSendMessage, TextMessage, ImageSendMessage, StickerSendMessage, LocationSendMessage, QuickReply, QuickReplyButton, MessageAction, AudioSendMessage, VideoSendMessage, TemplateSendMessage, ButtonsTemplate, MessageTemplateAction, URITemplateAction, PostbackTemplateAction, PostbackEvent
 
 line_bot_api = LineBotApi(settings.LINE_CHANNEL_ACCESS_TOKEN)
 parser = WebhookParser(settings.LINE_CHANNEL_SECRET)
@@ -87,10 +90,29 @@ def callback(request):
                     # line_bot_api.reply_message(event.reply_token, TextSendMessage(text='case 6'))
 
                     sendQuickreply(event)
+                elif mtext == '@傳送聲音':
+                    sendVoice(event)
+                elif mtext == '@傳送影片':
+                    sendVideo(event)
+                elif mtext == '@按鈕樣板':
+                    sendButton(event)
+                elif mtext == '@確認樣板':
+                    sendConfirm(event)
+                elif mtext == '@轉盤樣板':
+                    sendCarousel(event)
+                elif mtext == '@圖片轉盤':
+                    sendImageCarousel(event)
+                elif mtext == '@購買披薩':
+                    sendPizza(event)
                 else:
                     # Echo the received text message if no specific command is matched
                     line_bot_api.reply_message(event.reply_token, TextSendMessage(text=mtext))
 
+
+            if isinstance(event, PostbackEvent):  # Check if the event is a PostbackEvent
+                backdata = dict(parse_qsl(event.postback.data))  # Parse the postback data into a dictionary
+                if backdata.get('action') == 'buy':  # Check if the action is 'buy'
+                    sendBack_buy(event, backdata)  # Call the sendBack_buy function with the event and backdata
     # Acknowledge successful handling of the webhook event
     return HttpResponse()
 
@@ -261,3 +283,166 @@ def sendQuickreply(event):
         
         # Send an error message back to the user
         line_bot_api.reply_message(event.reply_token, TextSendMessage(text='An error occurred while sending the quick reply!'))
+
+def sendVoice(event):
+    """
+    Sends an audio message in response to a LINE event and confirms receipt.
+
+    Parameters:
+    - event: The LINE event object containing the reply token and message details.
+    """
+    try:
+        # Create an AudioSendMessage object with the audio URL and duration
+        message = AudioSendMessage(
+            original_content_url="https://6fa1-140-135-236-190.ngrok-free.app/static/mario.m4a",
+            duration=20000
+        )
+        
+        # Send the audio message using the LINE Bot API
+        line_bot_api.reply_message(event.reply_token, message)
+        
+        # Confirm receipt of the audio message
+        line_bot_api.reply_message(event.reply_token, TextSendMessage(text='Audio file has been sent successfully!'))
+    except FileNotFoundError:
+        # Log the specific exception for file not found
+        print("Error: The audio file was not found.")
+        
+        # Send a specific error message back to the user
+        line_bot_api.reply_message(event.reply_token, TextSendMessage(text="The audio file could not be found!"))
+    except Exception as e:
+        # Log the general exception for debugging purposes
+        print(f"Error occurred: {e}")
+        
+        # Send a general error message back to the user
+        line_bot_api.reply_message(event.reply_token, TextSendMessage(text='An error occurred while sending the audio!'))
+
+    """Error log:
+    Error occurred: LineBotApiError: status_code=400, 
+    request_id=a6673403-86d3-4fb0-8c2c-e8c7427a7664,
+      error_response={"details": [], "message": "Invalid reply token"}, 
+      headers={'Server': 'legy', 'Content-Type': 'application/json', 
+      'x-content-type-options': 'nosniff', 'x-frame-options': 'DENY', 
+      'x-line-request-id': 'a6673403-86d3-4fb0-8c2c-e8c7427a7664', 
+      'x-xss-protection': '1; mode=block', 'Content-Length': '33', 
+      'Expires': 'Thu, 08 May 2025 09:21:45 GMT', 
+      'Cache-Control': 'max-age=0, no-cache, no-store', 'Pragma': 'no-cache', 'Date': 
+      'Thu, 08 May 2025 09:21:45 GMT', 'Connection': 'close'}
+    語音播放時 顯示保存期限已過 無法播放
+    """
+
+def sendVideo(event):
+    """
+    Sends a video message in response to a LINE event.
+
+    Parameters:
+    - event: The LINE event object containing the reply token and message details.
+    """
+    try:
+        # Create a VideoSendMessage object with the video URL and preview image URL
+        message = VideoSendMessage(
+            original_content_url='https://6fa1-140-135-236-190.ngrok-free.app/static/robot.mp4',
+            preview_image_url='https://6fa1-140-135-236-190.ngrok-free.app/static/robot.jpg'
+        )
+        
+        # Send the video message using the LINE Bot API
+        line_bot_api.reply_message(event.reply_token, message)
+    except Exception as e:
+        # Log the exception for debugging purposes
+        print(f"Error occurred: {e}")
+        
+        # Send an error message back to the user
+        line_bot_api.reply_message(event.reply_token, TextSendMessage(text='An error occurred while sending the video!'))
+
+    """Error log:
+    無法播放影片
+
+    """
+
+
+def sendButton(event):
+    """
+    Sends a button template message in response to a LINE event.
+
+    Parameters:
+    - event: The LINE event object containing the reply token and message details.
+    """
+    try:
+        # Create a TemplateSendMessage object with a ButtonsTemplate
+        message = TemplateSendMessage(
+            alt_text='按鈕樣板',
+            template=ButtonsTemplate(
+                thumbnail_image_url='https://assets.tmecosys.com/image/upload/t_web_rdp_recipe_584x480_1_5x/img/recipe/ras/Assets/2caca97b-77f6-48e7-837d-62642c0c9861/Derivates/12591894-e010-4a02-b04e-2627d8374298.jpg',  # Display image
+                title='按鈕樣版示範',  # Main title
+                text='請選擇:',  # Display text
+                actions=[
+                    MessageTemplateAction(
+                        label='文字訊息',
+                        text='@購買披薩'
+                    ),
+                    URITemplateAction(  # Open webpage
+                        label='連結網頁',
+                        uri='https://www.pizzahut.com.tw/'
+                    ),
+                    PostbackTemplateAction(  # Execute Postback function, trigger Postback event
+                        label='回傳訊息',
+                        data='action=buy'
+                    )
+                ]
+            )
+        )
+        # Send the button template message using the LINE Bot API
+        line_bot_api.reply_message(event.reply_token, message)
+    except Exception as e:
+        # Log the exception for debugging purposes
+        print(f"Error occurred: {e}")
+        
+        # Send an error message back to the user
+        line_bot_api.reply_message(event.reply_token, TextSendMessage(text='An error occurred while sending the button template!'))
+
+
+def sendPizza(event):
+    """
+    Sends a text message confirming the purchase of a pizza in response to a LINE event.
+
+    Parameters:
+    - event: The LINE event object containing the reply token and message details.
+    """
+    try:
+        # Create a TextSendMessage object with the confirmation text
+        message = TextSendMessage(
+            text='感謝您購買披薩,我們將盡快為您製作。'
+        )
+        
+        # Send the confirmation message using the LINE Bot API
+        line_bot_api.reply_message(event.reply_token, message)
+    except Exception as e:
+        # Log the exception for debugging purposes
+        print(f"Error occurred: {e}")
+        
+        # Send an error message back to the user
+        line_bot_api.reply_message(event.reply_token, TextSendMessage(text='An error occurred while sending the pizza confirmation!'))
+
+def sendBack_buy(event, backdata):
+    """
+    Handles the postback event for purchasing a pizza and sends a confirmation message.
+
+    Parameters:
+    - event: The LINE event object containing the reply token and message details.
+    - backdata: A dictionary containing the postback data.
+    """
+    try:
+        # Construct the confirmation message text
+        text1 = '感謝您購買披薩,'
+        text1 += '\n我們將盡快為您製作。'
+
+        # Create a TextSendMessage object with the confirmation text
+        message = TextSendMessage(text=text1)
+
+        # Send the confirmation message using the LINE Bot API
+        line_bot_api.reply_message(event.reply_token, message)
+    except Exception as e:
+        # Log the exception for debugging purposes
+        print(f"Error occurred: {e}")
+
+        # Send an error message back to the user
+        line_bot_api.reply_message(event.reply_token, TextSendMessage(text='An error occurred while processing your request.'))
