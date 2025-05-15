@@ -15,7 +15,7 @@ from urllib.parse import parse_qsl
 
 # Import exception classes: InvalidSignatureError for signature validation errors, LineBotApiError for API request failures
 from linebot.exceptions import InvalidSignatureError, LineBotApiError
-from linebot.models import MessageEvent, TextSendMessage, TextMessage, ImageSendMessage, StickerSendMessage, LocationSendMessage, QuickReply, QuickReplyButton, MessageAction, AudioSendMessage, VideoSendMessage, TemplateSendMessage, ButtonsTemplate, MessageTemplateAction, URITemplateAction, PostbackTemplateAction, PostbackEvent, ConfirmTemplate, CarouselTemplate, CarouselColumn, ImageCarouselTemplate, ImageCarouselColumn
+from linebot.models import MessageEvent, TextSendMessage, TextMessage, ImageSendMessage, StickerSendMessage, LocationSendMessage, QuickReply, QuickReplyButton, MessageAction, AudioSendMessage, VideoSendMessage, TemplateSendMessage, ButtonsTemplate, MessageTemplateAction, URITemplateAction, PostbackTemplateAction, PostbackEvent, ConfirmTemplate, CarouselTemplate, CarouselColumn, ImageCarouselTemplate, ImageCarouselColumn, ImagemapSendMessage, BaseSize, MessageImagemapAction, ImagemapArea, URIImagemapAction, DatetimePickerTemplateAction, DatetimePickerAction
 
 line_bot_api = LineBotApi(settings.LINE_CHANNEL_ACCESS_TOKEN)
 parser = WebhookParser(settings.LINE_CHANNEL_SECRET)
@@ -108,15 +108,31 @@ def callback(request):
                     sendImgCarousel(event)
                 elif mtext == '@購買披薩':
                     sendPizza(event)
+                elif mtext == '@圖片地圖':
+                    sendImgmap(event)
+                elif mtext == '@日期時間':
+                    sendDatetime(event)
                 else:
                     # Echo the received text message if no specific command is matched
                     line_bot_api.reply_message(event.reply_token, TextSendMessage(text=mtext))
 
 
-            if isinstance(event, PostbackEvent):  # Check if the event is a PostbackEvent
-                backdata = dict(parse_qsl(event.postback.data))  # Parse the postback data into a dictionary
-                if backdata.get('action') == 'buy':  # Check if the action is 'buy'
-                    sendBack_buy(event, backdata)  # Call the sendBack_buy function with the event and backdata
+        if isinstance(event, PostbackEvent):  # Check if the event is a PostbackEvent
+            backdata = dict(parse_qsl(event.postback.data))  # Parse the postback data into a dictionary
+            
+            if backdata.get('action') == 'buy':  # Check if the action is 'buy'
+                sendBack_buy(event, backdata)  # Call the sendBack_buy function with the event and backdata
+            
+            elif backdata.get('action') == 'sell':  # Check if the action is 'sell'
+                try:
+                    sendData_sell(event, backdata)  # Call the sendData_sell function with the event and backdata
+                except Exception as e:
+                    print(f"Error occurred in sendData_sell: {e}")
+                    line_bot_api.reply_message(event.reply_token, TextSendMessage(text='An error occurred while processing your request!'))
+            
+            elif backdata.get('action') == 'return':  # Handle datetime picker postback
+                handlePostback(event)  # Call the handlePostback function for datetime picker
+
     # Acknowledge successful handling of the webhook event
     return HttpResponse()
 
@@ -631,3 +647,136 @@ def sendImgCarousel(event):
 
         # Send an error message back to the user
         line_bot_api.reply_message(event.reply_token, TextSendMessage(text='圖片轉盤傳送失敗！'))
+
+def sendImgmap(event):
+    """
+    Sends an imagemap message to the user using the LINE Bot API.
+    The imagemap contains interactive areas that users can click on.
+    """
+    try:
+        # Define the image URL and dimensions
+        image_url = 'https://i.imgur.com/Yz2yzve.jpg'
+        imgwidth = 1040  # The original image width must be 1040
+        imgheight = 300
+
+        # Create an ImagemapSendMessage object with the image and actions
+        message = ImagemapSendMessage(
+            base_url=image_url,
+            alt_text="This is an imagemap",
+            base_size=BaseSize(height=imgheight, width=imgwidth),
+            actions=[
+                # Define a message action for the left quarter of the image
+                MessageImagemapAction(
+                    text='You clicked the red area!',
+                    area=ImagemapArea(
+                        x=0,
+                        y=0,
+                        width=imgwidth * 0.25,
+                        height=imgheight
+                    )
+                ),
+                # Define a URI action for the right quarter of the image
+                URIImagemapAction(
+                    link_uri='https://im.cycu.edu.tw/',
+                    area=ImagemapArea(
+                        x=imgwidth * 0.75,
+                        y=0,
+                        width=imgwidth * 0.25,
+                        height=imgheight
+                    )
+                )
+            ]
+        )
+
+        # Send the imagemap message using the LINE Bot API
+        line_bot_api.reply_message(event.reply_token, message)
+    except Exception as e:
+        # Log the exception for debugging purposes
+        print(f"Error occurred: {e}")
+
+        # Send an error message back to the user
+        line_bot_api.reply_message(event.reply_token, TextSendMessage(text='An error occurred while sending the imagemap!'))
+
+def sendDatetime(event):
+    """
+    Sends a template message with datetime picker actions in response to a LINE event.
+    When a date, time, or datetime is selected, it sends the selected value back to the user.
+
+    Parameters:
+    - event: The LINE event object containing the reply token and message details.
+    """
+    try:
+        # Create a TemplateSendMessage object with datetime picker actions
+        message = TemplateSendMessage(
+            alt_text='Datetime Picker Example',
+            template=ButtonsTemplate(
+                thumbnail_image_url='https://i.imgur.com/VxVB46z.jpg',
+                title='Datetime Selection',
+                text='Please select:',
+                actions=[
+                    DatetimePickerTemplateAction(
+                        label="Select Date",
+                        data="action=return&mode=date&label=Date",
+                        mode="date",
+                        initial="2021-06-01",
+                        min="2021-01-01",
+                        max="2021-12-31"
+                    ),
+                    DatetimePickerTemplateAction(
+                        label="Select Time",
+                        data="action=return&mode=time&label=Time",
+                        mode="time",
+                        initial="10:00",
+                        min="00:00",
+                        max="23:59"
+                    ),
+                    DatetimePickerTemplateAction(
+                        label="Select Datetime",
+                        data="action=return&mode=datetime&label=Datetime",
+                        mode="datetime",
+                        initial="2021-06-01T10:00",
+                        min="2021-01-01T00:00",
+                        max="2021-12-31T23:59"
+                    )
+                ]
+            )
+        )
+
+        # Send the template message using the LINE Bot API
+        line_bot_api.reply_message(event.reply_token, message)
+    except Exception as e:
+        # Log the exception for debugging purposes
+        print(f"Error occurred: {e}")
+
+        # Send an error message back to the user
+        line_bot_api.reply_message(event.reply_token, TextSendMessage(text='An error occurred while sending the datetime picker!'))
+
+def handlePostback(event):
+    """
+    Handles postback events from datetime picker actions and sends the selected value back to the user.
+
+    Parameters:
+    - event: The LINE event object containing the postback data.
+    """
+    try:
+        # Parse the postback data into a dictionary
+        backdata = dict(parse_qsl(event.postback.data))
+        
+        # Retrieve the mode and label from the postback data
+        mode = backdata.get('mode')
+        label = backdata.get('label')
+        
+        # Retrieve the selected value from the postback parameters
+        selected_value = event.postback.params.get(mode)
+        
+        # Construct the response message
+        response_message = f"Your {label}: {selected_value}"
+        
+        # Send the response message back to the user
+        line_bot_api.reply_message(event.reply_token, TextSendMessage(text=response_message))
+    except Exception as e:
+        # Log the exception for debugging purposes
+        print(f"Error occurred in handlePostback: {e}")
+
+        # Send an error message back to the user
+        line_bot_api.reply_message(event.reply_token, TextSendMessage(text='An error occurred while processing your selection!'))
