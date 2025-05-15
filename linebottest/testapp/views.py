@@ -15,7 +15,7 @@ from urllib.parse import parse_qsl
 
 # Import exception classes: InvalidSignatureError for signature validation errors, LineBotApiError for API request failures
 from linebot.exceptions import InvalidSignatureError, LineBotApiError
-from linebot.models import MessageEvent, TextSendMessage, TextMessage, ImageSendMessage, StickerSendMessage, LocationSendMessage, QuickReply, QuickReplyButton, MessageAction, AudioSendMessage, VideoSendMessage, TemplateSendMessage, ButtonsTemplate, MessageTemplateAction, URITemplateAction, PostbackTemplateAction, PostbackEvent, ConfirmTemplate, CarouselTemplate, CarouselColumn
+from linebot.models import MessageEvent, TextSendMessage, TextMessage, ImageSendMessage, StickerSendMessage, LocationSendMessage, QuickReply, QuickReplyButton, MessageAction, AudioSendMessage, VideoSendMessage, TemplateSendMessage, ButtonsTemplate, MessageTemplateAction, URITemplateAction, PostbackTemplateAction, PostbackEvent, ConfirmTemplate, CarouselTemplate, CarouselColumn, ImageCarouselTemplate, ImageCarouselColumn
 
 line_bot_api = LineBotApi(settings.LINE_CHANNEL_ACCESS_TOKEN)
 parser = WebhookParser(settings.LINE_CHANNEL_SECRET)
@@ -105,7 +105,7 @@ def callback(request):
                 elif mtext == '@轉盤樣板':
                     sendCarousel(event)
                 elif mtext == '@圖片轉盤':
-                    sendImageCarousel(event)
+                    sendImgCarousel(event)
                 elif mtext == '@購買披薩':
                     sendPizza(event)
                 else:
@@ -593,3 +593,41 @@ def sendCarousel(event):
         
         # Send an error message back to the user
         line_bot_api.reply_message(event.reply_token, TextSendMessage(text='An error occurred while sending the carousel template!'))
+
+def sendImgCarousel(event):
+    """
+    Sends an image carousel message to the user using the LINE Bot API.
+    The carousel contains images with actions that users can interact with.
+    """
+    try:
+        # Create a template message with an image carousel
+        message = TemplateSendMessage(
+            alt_text='Image Carousel Template',
+            template=ImageCarouselTemplate(
+                columns=[
+                    ImageCarouselColumn(
+                        image_url='https://i.imgur.com/4QfKuz1.png',
+                        action=MessageTemplateAction(
+                            label='Order Pizza',
+                            text='Order Pizza'
+                        )
+                    ),
+                    ImageCarouselColumn(
+                        image_url='https://i.imgur.com/qaAdBkR.png',
+                        action=MessageTemplateAction(
+                            label='Order Drinks',
+                            text='Order Drinks'
+                        )
+                    )
+                ]
+            )
+        )
+
+        # Send the carousel message using the LINE Bot API
+        line_bot_api.reply_message(event.reply_token, message)
+    except Exception as e:
+        # Log the exception for debugging purposes
+        print(f"Error occurred: {e}")
+
+        # Send an error message back to the user
+        line_bot_api.reply_message(event.reply_token, TextSendMessage(text='圖片轉盤傳送失敗！'))
