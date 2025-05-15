@@ -15,7 +15,7 @@ from urllib.parse import parse_qsl
 
 # Import exception classes: InvalidSignatureError for signature validation errors, LineBotApiError for API request failures
 from linebot.exceptions import InvalidSignatureError, LineBotApiError
-from linebot.models import MessageEvent, TextSendMessage, TextMessage, ImageSendMessage, StickerSendMessage, LocationSendMessage, QuickReply, QuickReplyButton, MessageAction, AudioSendMessage, VideoSendMessage, TemplateSendMessage, ButtonsTemplate, MessageTemplateAction, URITemplateAction, PostbackTemplateAction, PostbackEvent
+from linebot.models import MessageEvent, TextSendMessage, TextMessage, ImageSendMessage, StickerSendMessage, LocationSendMessage, QuickReply, QuickReplyButton, MessageAction, AudioSendMessage, VideoSendMessage, TemplateSendMessage, ButtonsTemplate, MessageTemplateAction, URITemplateAction, PostbackTemplateAction, PostbackEvent, ConfirmTemplate
 
 line_bot_api = LineBotApi(settings.LINE_CHANNEL_ACCESS_TOKEN)
 parser = WebhookParser(settings.LINE_CHANNEL_SECRET)
@@ -98,6 +98,10 @@ def callback(request):
                     sendButton(event)
                 elif mtext == '@確認樣板':
                     sendConfirm(event)
+                elif mtext == '@yes':
+                    sendYes (event)
+                elif mtext == '@no':
+                    sendNo(event)
                 elif mtext == '@轉盤樣板':
                     sendCarousel(event)
                 elif mtext == '@圖片轉盤':
@@ -444,5 +448,84 @@ def sendBack_buy(event, backdata):
         # Log the exception for debugging purposes
         print(f"Error occurred: {e}")
 
+        # Send an error message back to the user
+        line_bot_api.reply_message(event.reply_token, TextSendMessage(text='An error occurred while processing your request.'))
+
+def sendConfirm(event):
+    """
+    Sends a confirmation template message in response to a LINE event.
+
+    Parameters:
+    - event: The LINE event object containing the reply token and message details.
+    """
+    try:
+        # Create a TemplateSendMessage object with a ConfirmTemplate
+        message = TemplateSendMessage(
+            alt_text='Confirmation Template',
+            template=ConfirmTemplate(
+                text='你確定要購買此商品嗎?',
+                actions=[
+                    MessageTemplateAction(
+                        label='Yes',
+                        text='@yes'
+                    ),
+                    MessageTemplateAction(
+                        label='No',
+                        text='@no'
+                    )
+                ]
+            )
+        )
+        
+        # Send the confirmation template message using the LINE Bot API
+        line_bot_api.reply_message(event.reply_token, message)
+    except Exception as e:
+        # Log the exception for debugging purposes
+        print(f"Error occurred: {e}")
+        
+        # Send an error message back to the user
+        line_bot_api.reply_message(event.reply_token, TextSendMessage(text='An error occurred while sending the confirmation template!'))
+
+def sendYes(event):
+    """
+    Sends a confirmation message indicating a successful purchase.
+
+    Parameters:
+    - event: The LINE event object containing the reply token and message details.
+    """
+    try:
+        # Create a TextSendMessage object with the confirmation text
+        message = TextSendMessage(
+            text='感謝您的購買,\n我們將盡快寄出商品。'
+        )
+        
+        # Send the confirmation message using the LINE Bot API
+        line_bot_api.reply_message(event.reply_token, message)
+    except Exception as e:
+        # Log the exception for debugging purposes
+        print(f"Error occurred: {e}")
+        
+        # Send an error message back to the user
+        line_bot_api.reply_message(event.reply_token, TextSendMessage(text='An error occurred while processing your request.'))
+
+def sendNo(event):
+    """
+    Sends a message indicating the cancellation of the operation.
+
+    Parameters:
+    - event: The LINE event object containing the reply token and message details.
+    """
+    try:
+        # Create a TextSendMessage object with the cancellation text
+        message = TextSendMessage(
+            text='沒關係,\n請您重新操作。'
+        )
+        
+        # Send the cancellation message using the LINE Bot API
+        line_bot_api.reply_message(event.reply_token, message)
+    except Exception as e:
+        # Log the exception for debugging purposes
+        print(f"Error occurred: {e}")
+        
         # Send an error message back to the user
         line_bot_api.reply_message(event.reply_token, TextSendMessage(text='An error occurred while processing your request.'))
