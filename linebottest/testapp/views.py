@@ -15,7 +15,7 @@ from urllib.parse import parse_qsl
 
 # Import exception classes: InvalidSignatureError for signature validation errors, LineBotApiError for API request failures
 from linebot.exceptions import InvalidSignatureError, LineBotApiError
-from linebot.models import MessageEvent, TextSendMessage, TextMessage, ImageSendMessage, StickerSendMessage, LocationSendMessage, QuickReply, QuickReplyButton, MessageAction, AudioSendMessage, VideoSendMessage, TemplateSendMessage, ButtonsTemplate, MessageTemplateAction, URITemplateAction, PostbackTemplateAction, PostbackEvent, ConfirmTemplate
+from linebot.models import MessageEvent, TextSendMessage, TextMessage, ImageSendMessage, StickerSendMessage, LocationSendMessage, QuickReply, QuickReplyButton, MessageAction, AudioSendMessage, VideoSendMessage, TemplateSendMessage, ButtonsTemplate, MessageTemplateAction, URITemplateAction, PostbackTemplateAction, PostbackEvent, ConfirmTemplate, CarouselTemplate, CarouselColumn
 
 line_bot_api = LineBotApi(settings.LINE_CHANNEL_ACCESS_TOKEN)
 parser = WebhookParser(settings.LINE_CHANNEL_SECRET)
@@ -529,3 +529,67 @@ def sendNo(event):
         
         # Send an error message back to the user
         line_bot_api.reply_message(event.reply_token, TextSendMessage(text='An error occurred while processing your request.'))
+
+def sendCarousel(event):
+    """
+    Sends a carousel template message in response to a LINE event.
+
+    Parameters:
+    - event: The LINE event object containing the reply token and message details.
+    """
+    try:
+        # Create a TemplateSendMessage object with a CarouselTemplate
+        message = TemplateSendMessage(
+            alt_text='Carousel template',
+            template=CarouselTemplate(
+                columns=[
+                    CarouselColumn(
+                        thumbnail_image_url='https://image.pizzahut.com.tw/dynamic/content/36517db013d982b96cb19d84e82c7d9a.jpg',
+                        title='經典口味Pizza',
+                        text='經典口味Pizza常態供應!',
+                        actions=[
+                            URITemplateAction(
+                                label='超級總匯',
+                                uri='https://www.pizzahut.com.tw/menu/?parent_id=263&ppid=421'
+                            ),
+                            URITemplateAction(
+                                label='夏威夷',
+                                uri='https://www.pizzahut.com.tw/menu/?parent_id=263&ppid=416'
+                            ),
+                            URITemplateAction(
+                                label='海陸大亨',
+                                uri='https://www.pizzahut.com.tw/menu/?parent_id=263&ppid=4089'
+                            )
+                        ]
+                    ),
+                    CarouselColumn(
+                        thumbnail_image_url='https://image.pizzahut.com.tw/dynamic/content/95a4e3f58f95a5d9824cc55b0637a68f.jpg',
+                        title='期間限定Pizza',
+                        text='期間限定Pizza数量有限售完為止!',
+                        actions=[
+                            URITemplateAction(
+                                label='單點芝心蛇進草仔龜比薩',
+                                uri='https://www.pizzahut.com.tw/promotions/?parent_id=2330&ppid=4607'
+                            ),
+                            URITemplateAction(
+                                label='私房紅燒牛燉飯',
+                                uri='https://www.pizzahut.com.tw/promotions/?parent_id=2330&ppid=4598'
+                            ),
+                            URITemplateAction(
+                                label='松露干貝鮮蝦起司',
+                                uri='https://www.pizzahut.com.tw/menu/?parent_id=263&ppid=4668'
+                            )
+                        ]
+                    )
+                ]
+            )
+        )
+        
+        # Send the carousel message using the LINE Bot API
+        line_bot_api.reply_message(event.reply_token, message)
+    except Exception as e:
+        # Log the exception for debugging purposes
+        print(f"Error occurred: {e}")
+        
+        # Send an error message back to the user
+        line_bot_api.reply_message(event.reply_token, TextSendMessage(text='An error occurred while sending the carousel template!'))
