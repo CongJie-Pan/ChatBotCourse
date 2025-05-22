@@ -112,7 +112,11 @@ def callback(request):
                     sendImgmap(event)
                 elif mtext == '@日期時間':
                     sendDatetime(event)
-                # Handle drink description requests
+                # Handle drink menu button selections
+                elif mtext.endswith('介紹'):
+                    drink_name = mtext.replace('介紹', '')
+                    getDrinkDescription(event, drink_name)
+                # Handle drink description requests with @ symbol (keeping for backward compatibility)
                 elif mtext.startswith('@'):
                     drink_name = mtext[1:]  # Remove the @ prefix
                     getDrinkDescription(event, drink_name)
@@ -571,29 +575,66 @@ def sendCarousel(event):
     try:
         # Create a TemplateSendMessage object with a CarouselTemplate
         message = TemplateSendMessage(
-            alt_text='Carousel template',
+            alt_text='飲料菜單',
             template=CarouselTemplate(
                 columns=[
                     CarouselColumn(
                         thumbnail_image_url='https://365dailydrinks.com/wp-content/uploads/2020/10/oolong-tea-project-1.jpg',
-                        title='飲料點餐Line系統',
-                        text='經典飲料點餐!',
+                        title='茶類飲品',
+                        text='經典烏龍茶系列',
                         actions=[
                             PostbackTemplateAction(
-                                label='茶類',
+                                label='查看茶類飲品',
                                 data='action=drink_category&category=tea'
                             ),
-                            PostbackTemplateAction(
-                                label='奶類',
-                                data='action=drink_category&category=milk'
+                            MessageTemplateAction(
+                                label='春烏龍',
+                                text='春烏龍介紹'
                             ),
-                            PostbackTemplateAction(
-                                label='其他',
-                                data='action=drink_category&category=other'
+                            MessageTemplateAction(
+                                label='焙烏龍',
+                                text='焙烏龍介紹'
                             )
                         ]
                     ),
-                    
+                    CarouselColumn(
+                        thumbnail_image_url='https://cc.tvbs.com.tw/img/program/upload/2024/07/04/20240704180750-6327e678.jpg',
+                        title='奶類飲品',
+                        text='濃醇奶茶系列',
+                        actions=[
+                            PostbackTemplateAction(
+                                label='查看奶類飲品',
+                                data='action=drink_category&category=milk'
+                            ),
+                            MessageTemplateAction(
+                                label='黃金珍珠奶綠',
+                                text='黃金珍珠奶綠介紹'
+                            ),
+                            MessageTemplateAction(
+                                label='烘吉鮮奶',
+                                text='烘吉鮮奶介紹'
+                            )
+                        ]
+                    ),
+                    CarouselColumn(
+                        thumbnail_image_url='https://blog-cdn.roo.cash/blog/wp-content/uploads/2024/06/%E7%94%98%E8%94%97%E6%98%A5%E7%83%8F%E9%BE%8D.jpg',
+                        title='其他飲品',
+                        text='特調果茶系列',
+                        actions=[
+                            PostbackTemplateAction(
+                                label='查看其他飲品',
+                                data='action=drink_category&category=other'
+                            ),
+                            MessageTemplateAction(
+                                label='甘蔗春烏龍',
+                                text='甘蔗春烏龍介紹'
+                            ),
+                            MessageTemplateAction(
+                                label='檸檬春烏龍',
+                                text='檸檬春烏龍介紹'
+                            )
+                        ]
+                    )
                 ]
             )
         )
@@ -605,7 +646,7 @@ def sendCarousel(event):
         print(f"Error occurred: {e}")
         
         # Send an error message back to the user
-        line_bot_api.reply_message(event.reply_token, TextSendMessage(text='An error occurred while sending the carousel template!'))
+        line_bot_api.reply_message(event.reply_token, TextSendMessage(text='傳送飲料菜單時發生錯誤!'))
 
 def sendImgCarousel(event):
     """
@@ -781,11 +822,24 @@ def handlePostback(event):
 # Add new functions for handling drink menus
 def sendTeaMenu(event):
     """
-    Sends a tea menu in response to a LINE event.
+    Sends a tea menu with quick reply buttons in response to a LINE event.
     """
     try:
         message = TextSendMessage(
-            text='茶類\n1. 春烏龍\n2. 輕烏龍\n3. 焙烏龍\n\n想了解更多資訊，請輸入 @飲料名稱 (例如: @春烏龍)'
+            text='茶類 - 請選擇一項查看詳細介紹：',
+            quick_reply=QuickReply(
+                items=[
+                    QuickReplyButton(
+                        action=MessageAction(label="春烏龍", text="春烏龍介紹")
+                    ),
+                    QuickReplyButton(
+                        action=MessageAction(label="輕烏龍", text="輕烏龍介紹")
+                    ),
+                    QuickReplyButton(
+                        action=MessageAction(label="焙烏龍", text="焙烏龍介紹")
+                    )
+                ]
+            )
         )
         line_bot_api.reply_message(event.reply_token, message)
     except Exception as e:
@@ -794,11 +848,24 @@ def sendTeaMenu(event):
 
 def sendMilkMenu(event):
     """
-    Sends a milk-based drink menu in response to a LINE event.
+    Sends a milk-based drink menu with quick reply buttons in response to a LINE event.
     """
     try:
         message = TextSendMessage(
-            text='奶類\n1. 黃金珍珠奶綠\n2. 烘吉鮮奶\n3. 焙烏龍鮮奶\n\n想了解更多資訊，請輸入 @飲料名稱 (例如: @黃金珍珠奶綠)'
+            text='奶類 - 請選擇一項查看詳細介紹：',
+            quick_reply=QuickReply(
+                items=[
+                    QuickReplyButton(
+                        action=MessageAction(label="黃金珍珠奶綠", text="黃金珍珠奶綠介紹")
+                    ),
+                    QuickReplyButton(
+                        action=MessageAction(label="烘吉鮮奶", text="烘吉鮮奶介紹")
+                    ),
+                    QuickReplyButton(
+                        action=MessageAction(label="焙烏龍鮮奶", text="焙烏龍鮮奶介紹")
+                    )
+                ]
+            )
         )
         line_bot_api.reply_message(event.reply_token, message)
     except Exception as e:
@@ -807,11 +874,24 @@ def sendMilkMenu(event):
 
 def sendOtherMenu(event):
     """
-    Sends a menu of other drinks in response to a LINE event.
+    Sends a menu of other drinks with quick reply buttons in response to a LINE event.
     """
     try:
         message = TextSendMessage(
-            text='其他\n1. 甘蔗春烏龍\n2. 優酪春烏龍\n3. 檸檬春烏龍\n\n想了解更多資訊，請輸入 @飲料名稱 (例如: @甘蔗春烏龍)'
+            text='其他 - 請選擇一項查看詳細介紹：',
+            quick_reply=QuickReply(
+                items=[
+                    QuickReplyButton(
+                        action=MessageAction(label="甘蔗春烏龍", text="甘蔗春烏龍介紹")
+                    ),
+                    QuickReplyButton(
+                        action=MessageAction(label="優酪春烏龍", text="優酪春烏龍介紹")
+                    ),
+                    QuickReplyButton(
+                        action=MessageAction(label="檸檬春烏龍", text="檸檬春烏龍介紹")
+                    )
+                ]
+            )
         )
         line_bot_api.reply_message(event.reply_token, message)
     except Exception as e:
@@ -879,8 +959,8 @@ def sendDrinkMenuHelp(event):
     try:
         help_text = "飲料點餐系統使用說明：\n\n"
         help_text += "1. 輸入「@菜單」查看主要飲料分類\n"
-        help_text += "2. 選擇「茶類」、「奶類」或「其他」類別查看具體飲品\n"
-        help_text += "3. 輸入「@飲料名稱」(例如：@春烏龍)查看飲料詳細介紹\n\n"
+        help_text += "2. 選擇「茶類」、「奶類」或「其他」類別查看飲品選單\n"
+        help_text += "3. 點選您想了解的飲品，系統將自動顯示詳細介紹\n\n"
         help_text += "可用命令：\n"
         help_text += "- @菜單：顯示飲料分類\n"
         help_text += "- @飲料選單：顯示此幫助信息\n\n"
