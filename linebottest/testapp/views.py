@@ -102,7 +102,7 @@ def callback(request):
                     sendYes (event)
                 elif mtext == '@no':
                     sendNo(event)
-                elif mtext == '@轉盤樣板':
+                elif mtext == '@菜單':
                     sendCarousel(event)
                 elif mtext == '@圖片轉盤':
                     sendImgCarousel(event)
@@ -112,6 +112,12 @@ def callback(request):
                     sendImgmap(event)
                 elif mtext == '@日期時間':
                     sendDatetime(event)
+                # Handle drink description requests
+                elif mtext.startswith('@'):
+                    drink_name = mtext[1:]  # Remove the @ prefix
+                    getDrinkDescription(event, drink_name)
+                elif mtext == '@飲料選單' or mtext == '@飲料' or mtext == '@飲料菜單':
+                    sendDrinkMenuHelp(event)
                 else:
                     # Echo the received text message if no specific command is matched
                     line_bot_api.reply_message(event.reply_token, TextSendMessage(text=mtext))
@@ -132,6 +138,15 @@ def callback(request):
             
             elif backdata.get('action') == 'return':  # Handle datetime picker postback
                 handlePostback(event)  # Call the handlePostback function for datetime picker
+                
+            elif backdata.get('action') == 'drink_category':  # Handle drink category selection
+                category = backdata.get('category')
+                if category == 'tea':
+                    sendTeaMenu(event)
+                elif category == 'milk':
+                    sendMilkMenu(event)
+                elif category == 'other':
+                    sendOtherMenu(event)
 
     # Acknowledge successful handling of the webhook event
     return HttpResponse()
@@ -560,43 +575,25 @@ def sendCarousel(event):
             template=CarouselTemplate(
                 columns=[
                     CarouselColumn(
-                        thumbnail_image_url='https://image.pizzahut.com.tw/dynamic/content/36517db013d982b96cb19d84e82c7d9a.jpg',
-                        title='經典口味Pizza',
-                        text='經典口味Pizza常態供應!',
+                        thumbnail_image_url='https://365dailydrinks.com/wp-content/uploads/2020/10/oolong-tea-project-1.jpg',
+                        title='飲料點餐Line系統',
+                        text='經典飲料點餐!',
                         actions=[
-                            URITemplateAction(
-                                label='超級總匯',
-                                uri='https://www.pizzahut.com.tw/menu/?parent_id=263&ppid=421'
+                            PostbackTemplateAction(
+                                label='茶類',
+                                data='action=drink_category&category=tea'
                             ),
-                            URITemplateAction(
-                                label='夏威夷',
-                                uri='https://www.pizzahut.com.tw/menu/?parent_id=263&ppid=416'
+                            PostbackTemplateAction(
+                                label='奶類',
+                                data='action=drink_category&category=milk'
                             ),
-                            URITemplateAction(
-                                label='海陸大亨',
-                                uri='https://www.pizzahut.com.tw/menu/?parent_id=263&ppid=4089'
+                            PostbackTemplateAction(
+                                label='其他',
+                                data='action=drink_category&category=other'
                             )
                         ]
                     ),
-                    CarouselColumn(
-                        thumbnail_image_url='https://image.pizzahut.com.tw/dynamic/content/95a4e3f58f95a5d9824cc55b0637a68f.jpg',
-                        title='期間限定Pizza',
-                        text='期間限定Pizza数量有限售完為止!',
-                        actions=[
-                            URITemplateAction(
-                                label='單點芝心蛇進草仔龜比薩',
-                                uri='https://www.pizzahut.com.tw/promotions/?parent_id=2330&ppid=4607'
-                            ),
-                            URITemplateAction(
-                                label='私房紅燒牛燉飯',
-                                uri='https://www.pizzahut.com.tw/promotions/?parent_id=2330&ppid=4598'
-                            ),
-                            URITemplateAction(
-                                label='松露干貝鮮蝦起司',
-                                uri='https://www.pizzahut.com.tw/menu/?parent_id=263&ppid=4668'
-                            )
-                        ]
-                    )
+                    
                 ]
             )
         )
@@ -780,3 +777,119 @@ def handlePostback(event):
 
         # Send an error message back to the user
         line_bot_api.reply_message(event.reply_token, TextSendMessage(text='An error occurred while processing your selection!'))
+
+# Add new functions for handling drink menus
+def sendTeaMenu(event):
+    """
+    Sends a tea menu in response to a LINE event.
+    """
+    try:
+        message = TextSendMessage(
+            text='茶類\n1. 春烏龍\n2. 輕烏龍\n3. 焙烏龍\n\n想了解更多資訊，請輸入 @飲料名稱 (例如: @春烏龍)'
+        )
+        line_bot_api.reply_message(event.reply_token, message)
+    except Exception as e:
+        print(f"Error occurred: {e}")
+        line_bot_api.reply_message(event.reply_token, TextSendMessage(text='傳送茶類選單時發生錯誤!'))
+
+def sendMilkMenu(event):
+    """
+    Sends a milk-based drink menu in response to a LINE event.
+    """
+    try:
+        message = TextSendMessage(
+            text='奶類\n1. 黃金珍珠奶綠\n2. 烘吉鮮奶\n3. 焙烏龍鮮奶\n\n想了解更多資訊，請輸入 @飲料名稱 (例如: @黃金珍珠奶綠)'
+        )
+        line_bot_api.reply_message(event.reply_token, message)
+    except Exception as e:
+        print(f"Error occurred: {e}")
+        line_bot_api.reply_message(event.reply_token, TextSendMessage(text='傳送奶類選單時發生錯誤!'))
+
+def sendOtherMenu(event):
+    """
+    Sends a menu of other drinks in response to a LINE event.
+    """
+    try:
+        message = TextSendMessage(
+            text='其他\n1. 甘蔗春烏龍\n2. 優酪春烏龍\n3. 檸檬春烏龍\n\n想了解更多資訊，請輸入 @飲料名稱 (例如: @甘蔗春烏龍)'
+        )
+        line_bot_api.reply_message(event.reply_token, message)
+    except Exception as e:
+        print(f"Error occurred: {e}")
+        line_bot_api.reply_message(event.reply_token, TextSendMessage(text='傳送其他選單時發生錯誤!'))
+
+def getDrinkDescription(event, drink_name):
+    """
+    Sends a description of a specific drink in response to a LINE event.
+    
+    Parameters:
+    - event: The LINE event object containing the reply token and message details.
+    - drink_name: The name of the drink to describe.
+    """
+    # Dictionary mapping drink names to their descriptions
+    drink_descriptions = {
+        '春烏龍': '輕發酵，順口見長，茶香細膩。',
+        '輕烏龍': '1 分火，口感溫潤，淡雅清香。',
+        '焙烏龍': '3分火，入口生津，醇厚甘潤。',
+        '黃金珍珠奶綠': '得正「黃金珍珠奶綠」以香醇的奶綠為基底，搭配 Q 彈的黃金珍珠，黃金珍珠以黑糖蜜製，呈現誘人的金黃色澤，口感軟 Q 香甜，與奶綠的濃郁茶香完美融合，身為珍奶控的你一定不能錯過這款經典不敗選擇。',
+        '烘吉鮮奶': '得正新推出的焙茶 HOJICHA 系列掀起一波風潮。得正「烘吉鮮奶」選用日本靜岡秋番茶以慢火焙炒，直到散發出焙茶的迷人香氣，再加入鮮奶，鮮乳香氣揉合茶香，交織出豐富、滑順的口感，非常值得一試！',
+        '焙烏龍鮮奶': '得正的「焙烏龍鮮奶」以招牌焙烏龍茶為基底，加入濃醇鮮奶調製而成，茶香與奶香完美融合，完全不會覺得膩口，整體口感滑順，如果喜歡茶味大於奶味的朋友，網友大推搭配茶凍一起！增加口感與味道層次，多重享受！',
+        '甘蔗春烏龍': '得正的「甘蔗春烏龍」以清爽的春烏龍為基底，加入新鮮甘蔗汁，甘蔗的清甜與春烏龍的淡雅茶香完美融合，口感清爽甘甜，帶有自然的甘蔗香氣，非常適合炎炎夏日來上一口，清涼又消暑！',
+        '優酪春烏龍': '這杯是得正的人氣代表！許多人第一眼看去都會誤會成「優格」，這杯「優酪春烏龍」（55元，中杯、65元，大杯）並不是優格，而是葡萄柚、乳酸飲料加上春烏龍的組合，葡萄柚是現榨的，因此能喝到些許果肉，茶香與酸甜果香完美結合，清爽到不行，是夏天許多人的救贖手搖飲首選，建議點微糖、無糖即可。',
+        '檸檬春烏龍': '「檸檬春烏龍」（50元，中杯、60元，大杯），也水果控很愛的夏日夯品。口感偏酸，但對於喜歡酸感的飲料人來說正好是完美酸度，檸檬加烏龍茶順口不澀，怕酸的朋友也可以選無糖、一分糖，酸度比較剛好，消暑解膩大推。'
+    }
+    
+    try:
+        # Trim any leading/trailing whitespace from drink name
+        drink_name = drink_name.strip()
+        
+        # Get the description for the requested drink, or a default message if not found
+        description = None
+        
+        # Try to find an exact match first
+        if drink_name in drink_descriptions:
+            description = drink_descriptions[drink_name]
+        else:
+            # If no exact match, try to find a partial match
+            for name, desc in drink_descriptions.items():
+                if name in drink_name or drink_name in name:
+                    description = desc
+                    drink_name = name  # Use the correct drink name for the response
+                    break
+        
+        # If still no match found, use default message
+        if description is None:
+            message = TextSendMessage(text=f'抱歉，沒有找到 {drink_name} 的資訊。')
+        else:
+            message = TextSendMessage(text=f'{drink_name}：{description}')
+        
+        # Send the message using the LINE Bot API
+        line_bot_api.reply_message(event.reply_token, message)
+    except Exception as e:
+        # Log the exception for debugging purposes
+        print(f"Error occurred: {e}")
+        
+        # Send an error message back to the user
+        line_bot_api.reply_message(event.reply_token, TextSendMessage(text=f'傳送 {drink_name} 的資訊時發生錯誤!'))
+
+def sendDrinkMenuHelp(event):
+    """
+    Sends help information about the drink menu system.
+    """
+    try:
+        help_text = "飲料點餐系統使用說明：\n\n"
+        help_text += "1. 輸入「@菜單」查看主要飲料分類\n"
+        help_text += "2. 選擇「茶類」、「奶類」或「其他」類別查看具體飲品\n"
+        help_text += "3. 輸入「@飲料名稱」(例如：@春烏龍)查看飲料詳細介紹\n\n"
+        help_text += "可用命令：\n"
+        help_text += "- @菜單：顯示飲料分類\n"
+        help_text += "- @飲料選單：顯示此幫助信息\n\n"
+        help_text += "茶類飲品：\n春烏龍、輕烏龍、焙烏龍\n\n"
+        help_text += "奶類飲品：\n黃金珍珠奶綠、烘吉鮮奶、焙烏龍鮮奶\n\n"
+        help_text += "其他飲品：\n甘蔗春烏龍、優酪春烏龍、檸檬春烏龍"
+        
+        message = TextSendMessage(text=help_text)
+        line_bot_api.reply_message(event.reply_token, message)
+    except Exception as e:
+        print(f"Error occurred: {e}")
+        line_bot_api.reply_message(event.reply_token, TextSendMessage(text='傳送飲料選單幫助時發生錯誤!'))
