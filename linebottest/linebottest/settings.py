@@ -27,9 +27,9 @@ SECRET_KEY = 'django-insecure-+x$y8kfx*qe^ir8bkjcck-#=&gd#pg800mpve)8k+33=q=69iw
 LINE_CHANNEL_ACCESS_TOKEN='GCtC2SKXw9drqFU2UKUy4dUE8kSFzfcM2g/VGe0QyidzCuyB2E7us8HRp2Xpr1PxTb5KUnBV7r+n7ctKXrD5YIN+t3WCLSSxWxjFWRDIC5qdznBk8iLN9TJ8Oc9Jxz6Ptt8x4h4OWgr2Z6f/IASu8wdB04t89/1O/w1cDnyilFU='
 LINE_CHANNEL_SECRET = '25ab797b256b1cf56222e57bedcd7494'
 
-# SECURITY WARNING: do not run with debug turned on in production!
-# Disable debug mode to avoid exposing sensitive information to end users
-DEBUG = False
+# SECURITY WARNING: don't run with debug turned on in production!
+# Enable debug mode for development
+DEBUG = True
 
 # Define allowed host/domain names for this Django site.
 # Restricting hosts helps prevent HTTP Host header attacks.
@@ -128,7 +128,13 @@ USE_TZ = True
 # https://docs.djangoproject.com/en/5.1/howto/static-files/
 
 STATIC_URL = 'static/'
-STATICFILES_DIRS = [os.path.join(BASE_DIR, 'static'),]
+STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
+STATICFILES_DIRS = [os.path.join(BASE_DIR, 'static')]
+
+# Media files
+MEDIA_URL = '/media/'
+MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
+
 # Default primary key field type
 # https://docs.djangoproject.com/en/5.1/ref/settings/#default-auto-field
 

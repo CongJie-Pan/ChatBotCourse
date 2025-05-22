@@ -17,6 +17,8 @@ Including another URLconf
 from django.contrib import admin  # import Django admin site for administration interface
 from django.urls import path, re_path  # path for simple routes, re_path for regex-based routes
 from testapp.views import callback  # import webhook callback view to handle incoming LINE events
+from django.conf import settings
+from django.conf.urls.static import static
 
 urlpatterns = [
     # Define LINE webhook callback route: match exact '/callback' URL using regex
@@ -25,4 +27,9 @@ urlpatterns = [
     # Define Django admin interface route under '/admin/' URL
     path('admin/', admin.site.urls, name='admin'),
 ]
+
+# Serve static files during development
+if settings.DEBUG:
+    urlpatterns += static(settings.STATIC_URL, document_root=settings.STATIC_ROOT)
+    urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
 
