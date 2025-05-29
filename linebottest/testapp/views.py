@@ -17,6 +17,9 @@ from urllib.parse import parse_qsl
 from linebot.exceptions import InvalidSignatureError, LineBotApiError
 from linebot.models import MessageEvent, TextSendMessage, TextMessage, ImageSendMessage, StickerSendMessage, LocationSendMessage, QuickReply, QuickReplyButton, MessageAction, AudioSendMessage, VideoSendMessage, TemplateSendMessage, ButtonsTemplate, MessageTemplateAction, URITemplateAction, PostbackTemplateAction, PostbackEvent, ConfirmTemplate, CarouselTemplate, CarouselColumn, ImageCarouselTemplate, ImageCarouselColumn, ImagemapSendMessage, BaseSize, MessageImagemapAction, ImagemapArea, URIImagemapAction, DatetimePickerTemplateAction, DatetimePickerAction
 
+# Import Drink model
+from .models import Drink
+
 line_bot_api = LineBotApi(settings.LINE_CHANNEL_ACCESS_TOKEN)
 parser = WebhookParser(settings.LINE_CHANNEL_SECRET)
 
@@ -102,7 +105,7 @@ def callback(request):
                     sendYes (event)
                 elif mtext == '@no':
                     sendNo(event)
-                elif mtext == '@轉盤樣板':
+                elif mtext == '@菜單':
                     sendCarousel(event)
                 elif mtext == '@圖片轉盤':
                     sendImgCarousel(event)
@@ -112,6 +115,16 @@ def callback(request):
                     sendImgmap(event)
                 elif mtext == '@日期時間':
                     sendDatetime(event)
+                # Handle drink menu button selections
+                elif mtext.endswith('介紹'):
+                    drink_name = mtext.replace('介紹', '')
+                    getDrinkDescription(event, drink_name)
+                # Handle drink description requests with @ symbol (keeping for backward compatibility)
+                elif mtext.startswith('@'):
+                    drink_name = mtext[1:]  # Remove the @ prefix
+                    getDrinkDescription(event, drink_name)
+                elif mtext == '@飲料選單' or mtext == '@飲料' or mtext == '@飲料菜單':
+                    sendDrinkMenuHelp(event)
                 else:
                     # Echo the received text message if no specific command is matched
                     line_bot_api.reply_message(event.reply_token, TextSendMessage(text=mtext))
@@ -132,6 +145,15 @@ def callback(request):
             
             elif backdata.get('action') == 'return':  # Handle datetime picker postback
                 handlePostback(event)  # Call the handlePostback function for datetime picker
+                
+            elif backdata.get('action') == 'drink_category':  # Handle drink category selection
+                category = backdata.get('category')
+                if category == 'tea':
+                    sendTeaMenu(event)
+                elif category == 'milk':
+                    sendMilkMenu(event)
+                elif category == 'other':
+                    sendOtherMenu(event)
 
     # Acknowledge successful handling of the webhook event
     return HttpResponse()
@@ -549,66 +571,131 @@ def sendNo(event):
 def sendCarousel(event):
     """
     Sends a carousel template message in response to a LINE event.
+    Uses database to get drink information.
 
     Parameters:
     - event: The LINE event object containing the reply token and message details.
     """
     try:
-        # Create a TemplateSendMessage object with a CarouselTemplate
-        message = TemplateSendMessage(
-            alt_text='Carousel template',
-            template=CarouselTemplate(
-                columns=[
-                    CarouselColumn(
-                        thumbnail_image_url='https://image.pizzahut.com.tw/dynamic/content/36517db013d982b96cb19d84e82c7d9a.jpg',
-                        title='經典口味Pizza',
-                        text='經典口味Pizza常態供應!',
-                        actions=[
-                            URITemplateAction(
-                                label='超級總匯',
-                                uri='https://www.pizzahut.com.tw/menu/?parent_id=263&ppid=421'
-                            ),
-                            URITemplateAction(
-                                label='夏威夷',
-                                uri='https://www.pizzahut.com.tw/menu/?parent_id=263&ppid=416'
-                            ),
-                            URITemplateAction(
-                                label='海陸大亨',
-                                uri='https://www.pizzahut.com.tw/menu/?parent_id=263&ppid=4089'
-                            )
-                        ]
-                    ),
-                    CarouselColumn(
-                        thumbnail_image_url='https://image.pizzahut.com.tw/dynamic/content/95a4e3f58f95a5d9824cc55b0637a68f.jpg',
-                        title='期間限定Pizza',
-                        text='期間限定Pizza数量有限售完為止!',
-                        actions=[
-                            URITemplateAction(
-                                label='單點芝心蛇進草仔龜比薩',
-                                uri='https://www.pizzahut.com.tw/promotions/?parent_id=2330&ppid=4607'
-                            ),
-                            URITemplateAction(
-                                label='私房紅燒牛燉飯',
-                                uri='https://www.pizzahut.com.tw/promotions/?parent_id=2330&ppid=4598'
-                            ),
-                            URITemplateAction(
-                                label='松露干貝鮮蝦起司',
-                                uri='https://www.pizzahut.com.tw/menu/?parent_id=263&ppid=4668'
-                            )
-                        ]
-                    )
-                ]
-            )
-        )
+        # Get drinks for each category (limit to 2 per category)
+        tea_drinks = Drink.objects.filter(category='tea').order_by('id')[:2]
+        milk_drinks = Drink.objects.filter(category='milk').order_by('id')[:2]
+        other_drinks = Drink.objects.filter(category='other').order_by('id')[:2]
         
-        # Send the carousel message using the LINE Bot API
-        line_bot_api.reply_message(event.reply_token, message)
+        # Create carousel columns
+        columns = []
+        
+        # Add tea category if there are tea drinks
+        if tea_drinks:
+            tea_actions = [
+                PostbackTemplateAction(
+                    label='查看茶類飲品',
+                    data='action=drink_category&category=tea'
+                )
+            ]
+            
+            # Add buttons for tea drinks
+            for drink in tea_drinks:
+                tea_actions.append(
+                    MessageTemplateAction(
+                        label=drink.name,
+                        text=f"{drink.name}介紹"
+                    )
+                )
+            
+            # Ensure only three actions maximum
+            tea_actions = tea_actions[:3]
+            
+            # Add tea column
+            columns.append(
+                CarouselColumn(
+                    thumbnail_image_url=tea_drinks[0].image_url if tea_drinks[0].image_url else 'https://365dailydrinks.com/wp-content/uploads/2020/10/oolong-tea-project-1.jpg',
+                    title='茶類飲品',
+                    text='經典烏龍茶系列',
+                    actions=tea_actions
+                )
+            )
+        
+        # Add milk category if there are milk drinks
+        if milk_drinks:
+            milk_actions = [
+                PostbackTemplateAction(
+                    label='查看奶類飲品',
+                    data='action=drink_category&category=milk'
+                )
+            ]
+            
+            # Add buttons for milk drinks
+            for drink in milk_drinks:
+                milk_actions.append(
+                    MessageTemplateAction(
+                        label=drink.name,
+                        text=f"{drink.name}介紹"
+                    )
+                )
+            
+            # Ensure only three actions maximum
+            milk_actions = milk_actions[:3]
+            
+            # Add milk column
+            columns.append(
+                CarouselColumn(
+                    thumbnail_image_url=milk_drinks[0].image_url if milk_drinks[0].image_url else 'https://cc.tvbs.com.tw/img/program/upload/2024/07/04/20240704180750-6327e678.jpg',
+                    title='奶類飲品',
+                    text='濃醇奶茶系列',
+                    actions=milk_actions
+                )
+            )
+        
+        # Add other category if there are other drinks
+        if other_drinks:
+            other_actions = [
+                PostbackTemplateAction(
+                    label='查看其他飲品',
+                    data='action=drink_category&category=other'
+                )
+            ]
+            
+            # Add buttons for other drinks
+            for drink in other_drinks:
+                other_actions.append(
+                    MessageTemplateAction(
+                        label=drink.name,
+                        text=f"{drink.name}介紹"
+                    )
+                )
+            
+            # Ensure only three actions maximum
+            other_actions = other_actions[:3]
+            
+            # Add other column
+            columns.append(
+                CarouselColumn(
+                    thumbnail_image_url=other_drinks[0].image_url if other_drinks[0].image_url else 'https://blog-cdn.roo.cash/blog/wp-content/uploads/2024/06/%E7%94%98%E8%94%97%E6%98%A5%E7%83%8F%E9%BE%8D.jpg',
+                    title='其他飲品',
+                    text='特調果茶系列',
+                    actions=other_actions
+                )
+            )
+        
+        # Create and send carousel message if we have any columns
+        if columns:
+            message = TemplateSendMessage(
+                alt_text='飲料菜單',
+                template=CarouselTemplate(columns=columns)
+            )
+            line_bot_api.reply_message(event.reply_token, message)
+        else:
+            # Send a message if no drinks are available
+            message = TextSendMessage(text='目前沒有可用的飲品選項')
+            line_bot_api.reply_message(event.reply_token, message)
+            
     except Exception as e:
-        # Log the exception for debugging purposes
+        # Log the error
         print(f"Error occurred: {e}")
         
-        # Send an error message back to the user
-        line_bot_api.reply_message(event.reply_token, TextSendMessage(text='An error occurred while sending the carousel template!'))
+        # Send error message
+        line_bot_api.reply_message(event.reply_token, TextSendMessage(text='傳送飲料菜單時發生錯誤!'))
 
 def sendImgCarousel(event):
     """
@@ -780,3 +867,199 @@ def handlePostback(event):
 
         # Send an error message back to the user
         line_bot_api.reply_message(event.reply_token, TextSendMessage(text='An error occurred while processing your selection!'))
+
+# Add new functions for handling drink menus
+def sendTeaMenu(event):
+    """
+    Sends a tea menu with quick reply buttons in response to a LINE event.
+    Uses database to get the tea drinks.
+    """
+    try:
+        # 從資料庫獲取茶類飲品
+        tea_drinks = Drink.objects.filter(category='tea')
+        
+        # 創建快速回覆按鈕
+        buttons = []
+        for drink in tea_drinks:
+            buttons.append(
+                QuickReplyButton(
+                    action=MessageAction(label=drink.name, text=f"{drink.name}介紹")
+                )
+            )
+        
+        message = TextSendMessage(
+            text='茶類 - 請選擇一項查看詳細介紹：',
+            quick_reply=QuickReply(items=buttons)
+        )
+        line_bot_api.reply_message(event.reply_token, message)
+    except Exception as e:
+        print(f"Error occurred: {e}")
+        line_bot_api.reply_message(event.reply_token, TextSendMessage(text='傳送茶類選單時發生錯誤!'))
+
+def sendMilkMenu(event):
+    """
+    Sends a milk-based drink menu with quick reply buttons in response to a LINE event.
+    Uses database to get the milk drinks.
+    """
+    try:
+        # 從資料庫獲取奶類飲品
+        milk_drinks = Drink.objects.filter(category='milk')
+        
+        # 創建快速回覆按鈕
+        buttons = []
+        for drink in milk_drinks:
+            buttons.append(
+                QuickReplyButton(
+                    action=MessageAction(label=drink.name, text=f"{drink.name}介紹")
+                )
+            )
+        
+        message = TextSendMessage(
+            text='奶類 - 請選擇一項查看詳細介紹：',
+            quick_reply=QuickReply(items=buttons)
+        )
+        line_bot_api.reply_message(event.reply_token, message)
+    except Exception as e:
+        print(f"Error occurred: {e}")
+        line_bot_api.reply_message(event.reply_token, TextSendMessage(text='傳送奶類選單時發生錯誤!'))
+
+def sendOtherMenu(event):
+    """
+    Sends a menu of other drinks with quick reply buttons in response to a LINE event.
+    Uses database to get the other drinks.
+    """
+    try:
+        # 從資料庫獲取其他飲品
+        other_drinks = Drink.objects.filter(category='other')
+        
+        # 創建快速回覆按鈕
+        buttons = []
+        for drink in other_drinks:
+            buttons.append(
+                QuickReplyButton(
+                    action=MessageAction(label=drink.name, text=f"{drink.name}介紹")
+                )
+            )
+        
+        message = TextSendMessage(
+            text='其他 - 請選擇一項查看詳細介紹：',
+            quick_reply=QuickReply(items=buttons)
+        )
+        line_bot_api.reply_message(event.reply_token, message)
+    except Exception as e:
+        print(f"Error occurred: {e}")
+        line_bot_api.reply_message(event.reply_token, TextSendMessage(text='傳送其他選單時發生錯誤!'))
+
+def getDrinkDescription(event, drink_name):
+    """
+    Sends a description and image of a specific drink in response to a LINE event.
+    Gets drink information from the database.
+    
+    Parameters:
+    - event: The LINE event object containing the reply token and message details.
+    - drink_name: The name of the drink to describe.
+    """
+    try:
+        # 從資料庫獲取飲料資訊
+        try:
+            drink = Drink.objects.get(name=drink_name)
+            messages = []
+            
+            # 如果有圖片網址，添加圖片訊息
+            if drink.image_url:
+                messages.append(
+                    ImageSendMessage(
+                        original_content_url=drink.image_url,
+                        preview_image_url=drink.image_url
+                    )
+                )
+            
+            # 添加描述文字訊息
+            messages.append(
+                TextSendMessage(text=f'{drink.name}：{drink.description}')
+            )
+            
+            # 發送多重訊息
+            line_bot_api.reply_message(event.reply_token, messages)
+            
+        except Drink.DoesNotExist:
+            # 如果找不到精確匹配，嘗試部分匹配
+            try:
+                drink = Drink.objects.filter(name__contains=drink_name).first()
+                if drink:
+                    messages = []
+                    
+                    # 如果有圖片網址，添加圖片訊息
+                    if drink.image_url:
+                        messages.append(
+                            ImageSendMessage(
+                                original_content_url=drink.image_url,
+                                preview_image_url=drink.image_url
+                            )
+                        )
+                    
+                    # 添加描述文字訊息
+                    messages.append(
+                        TextSendMessage(text=f'{drink.name}：{drink.description}')
+                    )
+                    
+                    # 發送多重訊息
+                    line_bot_api.reply_message(event.reply_token, messages)
+                else:
+                    line_bot_api.reply_message(
+                        event.reply_token,
+                        TextSendMessage(text=f'抱歉，沒有找到 {drink_name} 的資訊。')
+                    )
+            except Exception:
+                line_bot_api.reply_message(
+                    event.reply_token,
+                    TextSendMessage(text=f'抱歉，沒有找到 {drink_name} 的資訊。')
+                )
+    except Exception as e:
+        # 記錄異常
+        print(f"Error occurred: {e}")
+        
+        # 發送錯誤訊息
+        line_bot_api.reply_message(
+            event.reply_token,
+            TextSendMessage(text=f'傳送 {drink_name} 的資訊時發生錯誤!')
+        )
+
+def sendDrinkMenuHelp(event):
+    """
+    Sends help information about the drink menu system.
+    Uses database to get available drink categories and counts.
+    """
+    try:
+        # 獲取各類別飲品數量
+        tea_count = Drink.objects.filter(category='tea').count()
+        milk_count = Drink.objects.filter(category='milk').count()
+        other_count = Drink.objects.filter(category='other').count()
+        
+        # 獲取各類別飲品名稱列表
+        tea_drinks = Drink.objects.filter(category='tea').values_list('name', flat=True)
+        milk_drinks = Drink.objects.filter(category='milk').values_list('name', flat=True)
+        other_drinks = Drink.objects.filter(category='other').values_list('name', flat=True)
+        
+        help_text = "飲料點餐系統使用說明：\n\n"
+        help_text += "1. 輸入「@菜單」查看主要飲料分類\n"
+        help_text += "2. 選擇「茶類」、「奶類」或「其他」類別查看飲品選單\n"
+        help_text += "3. 點選您想了解的飲品，系統將自動顯示詳細介紹\n\n"
+        help_text += "可用命令：\n"
+        help_text += "- @菜單：顯示飲料分類\n"
+        help_text += "- @飲料選單：顯示此幫助信息\n\n"
+        
+        if tea_count > 0:
+            help_text += f"茶類飲品({tea_count}種)：\n{', '.join(tea_drinks)}\n\n"
+        
+        if milk_count > 0:
+            help_text += f"奶類飲品({milk_count}種)：\n{', '.join(milk_drinks)}\n\n"
+        
+        if other_count > 0:
+            help_text += f"其他飲品({other_count}種)：\n{', '.join(other_drinks)}"
+        
+        message = TextSendMessage(text=help_text)
+        line_bot_api.reply_message(event.reply_token, message)
+    except Exception as e:
+        print(f"Error occurred: {e}")
+        line_bot_api.reply_message(event.reply_token, TextSendMessage(text='傳送飲料選單幫助時發生錯誤!'))
