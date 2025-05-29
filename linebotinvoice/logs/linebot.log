@@ -1,0 +1,19 @@
+INFO 2025-05-29 17:36:37,920 views 10092 19112 Received LINE webhook callback
+INFO 2025-05-29 17:36:37,922 views 10092 19112 Received text message from U59102bd2c7c8a209a23347eea407eb5a: @對獎
+INFO 2025-05-29 17:36:49,028 views 10092 9224 Received LINE webhook callback
+INFO 2025-05-29 17:36:49,029 views 10092 9224 Received text message from U59102bd2c7c8a209a23347eea407eb5a: @顯示本期中獎號碼
+INFO 2025-05-29 17:36:56,994 views 10092 13852 Received LINE webhook callback
+INFO 2025-05-29 17:36:56,995 views 10092 13852 Received text message from U59102bd2c7c8a209a23347eea407eb5a: @轉盤樣板
+INFO 2025-05-29 17:46:38,231 views 17212 8440 Received LINE webhook callback
+INFO 2025-05-29 17:46:38,232 views 17212 8440 Received text message from U59102bd2c7c8a209a23347eea407eb5a: @顯示本期中獎號碼
+ERROR 2025-05-29 17:46:38,484 views 17212 8440 Error processing webhook callback: name 'parser' is not defined
+INFO 2025-05-29 17:52:11,433 views 18784 11060 Received LINE webhook callback
+INFO 2025-05-29 17:52:32,059 views 10404 15308 Received LINE webhook callback
+INFO 2025-05-29 17:53:19,388 views 10404 16952 Received LINE webhook callback
+INFO 2025-05-29 17:53:54,544 views 10404 17736 Received LINE webhook callback
+INFO 2025-05-29 17:55:32,180 views 7152 18624 Received LINE webhook callback
+INFO 2025-05-29 17:55:49,640 views 16684 13560 Received LINE webhook callback
+INFO 2025-05-29 17:56:04,547 views 13888 17244 Received LINE webhook callback
+INFO 2025-05-29 17:57:47,516 views 19500 19728 Received LINE webhook callback
+INFO 2025-05-29 17:58:03,375 views 19500 15364 Received LINE webhook callback
+INFO 2025-05-29 17:58:52,123 views 19500 15176 Received LINE webhook callback

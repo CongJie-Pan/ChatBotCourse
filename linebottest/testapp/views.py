@@ -20,6 +20,16 @@ from linebot.models import MessageEvent, TextSendMessage, TextMessage, ImageSend
 # Import Drink model
 from .models import Drink
 
+# Get http requests from "Treasury Invoice Information"
+import requests
+
+# Get xml.etree.ElementTree as ET for getting the data from "Treasury Invoice Information"
+try:
+    import xml.etree.ElementTree as ET
+except ImportError:
+    import xml.etree.cElementTree as ET
+
+
 line_bot_api = LineBotApi(settings.LINE_CHANNEL_ACCESS_TOKEN)
 parser = WebhookParser(settings.LINE_CHANNEL_SECRET)
 
@@ -125,6 +135,14 @@ def callback(request):
                     getDrinkDescription(event, drink_name)
                 elif mtext == '@飲料選單' or mtext == '@飲料' or mtext == '@飲料菜單':
                     sendDrinkMenuHelp(event)
+                elif mtext == '@顯示本期中獎號碼':
+                    showCurrent(event)
+                elif mtext == '@顯示前期中獎號碼':
+                    showOld(event)
+                elif mtext == '@對獎':
+                    line_bot_api.reply_message(event.reply_token, TextSendMessage(text='請輸入發票最後三碼進行對獎'))
+                elif len(mtext) == 3 and mtext.isdigit():
+                    show3digit(event, mtext)
                 else:
                     # Echo the received text message if no specific command is matched
                     line_bot_api.reply_message(event.reply_token, TextSendMessage(text=mtext))
@@ -577,16 +595,21 @@ def sendCarousel(event):
     - event: The LINE event object containing the reply token and message details.
     """
     try:
+        print(f"[DEBUG] sendCarousel called, reply_token: {event.reply_token}")
+        
         # Get drinks for each category (limit to 2 per category)
         tea_drinks = Drink.objects.filter(category='tea').order_by('id')[:2]
         milk_drinks = Drink.objects.filter(category='milk').order_by('id')[:2]
         other_drinks = Drink.objects.filter(category='other').order_by('id')[:2]
+        
+        print(f"[DEBUG] Retrieved drinks - Tea: {tea_drinks.count()}, Milk: {milk_drinks.count()}, Other: {other_drinks.count()}")
         
         # Create carousel columns
         columns = []
         
         # Add tea category if there are tea drinks
         if tea_drinks:
+            print(f"[DEBUG] Creating tea column with drinks: {[d.name for d in tea_drinks]}")
             tea_actions = [
                 PostbackTemplateAction(
                     label='查看茶類飲品',
@@ -607,9 +630,12 @@ def sendCarousel(event):
             tea_actions = tea_actions[:3]
             
             # Add tea column
+            tea_image_url = tea_drinks[0].image_url if tea_drinks[0].image_url else 'https://365dailydrinks.com/wp-content/uploads/2020/10/oolong-tea-project-1.jpg'
+            print(f"[DEBUG] Tea column image URL: {tea_image_url}")
+            
             columns.append(
                 CarouselColumn(
-                    thumbnail_image_url=tea_drinks[0].image_url if tea_drinks[0].image_url else 'https://365dailydrinks.com/wp-content/uploads/2020/10/oolong-tea-project-1.jpg',
+                    thumbnail_image_url=tea_image_url,
                     title='茶類飲品',
                     text='經典烏龍茶系列',
                     actions=tea_actions
@@ -618,6 +644,7 @@ def sendCarousel(event):
         
         # Add milk category if there are milk drinks
         if milk_drinks:
+            print(f"[DEBUG] Creating milk column with drinks: {[d.name for d in milk_drinks]}")
             milk_actions = [
                 PostbackTemplateAction(
                     label='查看奶類飲品',
@@ -638,9 +665,12 @@ def sendCarousel(event):
             milk_actions = milk_actions[:3]
             
             # Add milk column
+            milk_image_url = milk_drinks[0].image_url if milk_drinks[0].image_url else 'https://cc.tvbs.com.tw/img/program/upload/2024/07/04/20240704180750-6327e678.jpg'
+            print(f"[DEBUG] Milk column image URL: {milk_image_url}")
+            
             columns.append(
                 CarouselColumn(
-                    thumbnail_image_url=milk_drinks[0].image_url if milk_drinks[0].image_url else 'https://cc.tvbs.com.tw/img/program/upload/2024/07/04/20240704180750-6327e678.jpg',
+                    thumbnail_image_url=milk_image_url,
                     title='奶類飲品',
                     text='濃醇奶茶系列',
                     actions=milk_actions
@@ -649,6 +679,7 @@ def sendCarousel(event):
         
         # Add other category if there are other drinks
         if other_drinks:
+            print(f"[DEBUG] Creating other column with drinks: {[d.name for d in other_drinks]}")
             other_actions = [
                 PostbackTemplateAction(
                     label='查看其他飲品',
@@ -669,33 +700,49 @@ def sendCarousel(event):
             other_actions = other_actions[:3]
             
             # Add other column
+            other_image_url = other_drinks[0].image_url if other_drinks[0].image_url else 'https://blog-cdn.roo.cash/blog/wp-content/uploads/2024/06/%E7%94%98%E8%94%97%E6%98%A5%E7%83%8F%E9%BE%8D.jpg'
+            print(f"[DEBUG] Other column image URL: {other_image_url}")
+            
             columns.append(
                 CarouselColumn(
-                    thumbnail_image_url=other_drinks[0].image_url if other_drinks[0].image_url else 'https://blog-cdn.roo.cash/blog/wp-content/uploads/2024/06/%E7%94%98%E8%94%97%E6%98%A5%E7%83%8F%E9%BE%8D.jpg',
+                    thumbnail_image_url=other_image_url,
                     title='其他飲品',
                     text='特調果茶系列',
                     actions=other_actions
                 )
             )
         
+        print(f"[DEBUG] Total columns created: {len(columns)}")
+        
         # Create and send carousel message if we have any columns
         if columns:
+            print(f"[DEBUG] Creating carousel template message...")
             message = TemplateSendMessage(
                 alt_text='飲料菜單',
                 template=CarouselTemplate(columns=columns)
             )
+            print(f"[DEBUG] Sending carousel message...")
             line_bot_api.reply_message(event.reply_token, message)
+            print(f"[DEBUG] Carousel message sent successfully")
         else:
             # Send a message if no drinks are available
+            print(f"[DEBUG] No columns available, sending fallback message")
             message = TextSendMessage(text='目前沒有可用的飲品選項')
             line_bot_api.reply_message(event.reply_token, message)
             
     except Exception as e:
-        # Log the error
-        print(f"Error occurred: {e}")
+        # Log the error with full details
+        print(f"[ERROR] Error occurred in sendCarousel: {e}")
+        print(f"[ERROR] Error type: {type(e).__name__}")
+        import traceback
+        print(f"[ERROR] Full traceback:")
+        traceback.print_exc()
         
         # Send error message
-        line_bot_api.reply_message(event.reply_token, TextSendMessage(text='傳送飲料菜單時發生錯誤!'))
+        try:
+            line_bot_api.reply_message(event.reply_token, TextSendMessage(text='傳送飲料菜單時發生錯誤!'))
+        except Exception as reply_error:
+            print(f"[ERROR] Failed to send error message: {reply_error}")
 
 def sendImgCarousel(event):
     """
@@ -837,6 +884,7 @@ def sendDatetime(event):
 
         # Send an error message back to the user
         line_bot_api.reply_message(event.reply_token, TextSendMessage(text='An error occurred while sending the datetime picker!'))
+
 
 def handlePostback(event):
     """
@@ -1063,3 +1111,399 @@ def sendDrinkMenuHelp(event):
     except Exception as e:
         print(f"Error occurred: {e}")
         line_bot_api.reply_message(event.reply_token, TextSendMessage(text='傳送飲料選單幫助時發生錯誤!'))
+
+def showCurrent(event):
+    """
+    Fetches the current winning invoice numbers from the external service and sends them to the user.
+
+    Parameters:
+    - event: The LINE event object containing the reply token and message details.
+    """
+    try:
+        # Add timeout and headers for better reliability
+        headers = {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+        }
+        
+        # Fetch the XML content from the specified URL with timeout
+        response = requests.get('https://invoice.etax.nat.gov.tw/invoice.xml', 
+                               headers=headers, 
+                               timeout=10)
+        
+        # Check if the response is successful
+        if response.status_code != 200:
+            print(f"HTTP Error: {response.status_code}")
+            line_bot_api.reply_message(event.reply_token, 
+                TextSendMessage(text=f'發票 API 回應錯誤，狀態碼：{response.status_code}'))
+            return
+        
+        # Check if response content is not empty
+        if not response.text.strip():
+            print("Empty response received")
+            line_bot_api.reply_message(event.reply_token, 
+                TextSendMessage(text='發票 API 回應內容為空'))
+            return
+        
+        # Log response for debugging
+        print(f"Response received, length: {len(response.text)}")
+        print(f"First 200 chars: {response.text[:200]}")
+        
+        # Parse the XML content to extract relevant information
+        try:
+            tree = ET.fromstring(response.text)
+        except ET.ParseError as parse_error:
+            print(f"XML Parse Error: {parse_error}")
+            line_bot_api.reply_message(event.reply_token, 
+                TextSendMessage(text='發票資料 XML 格式解析錯誤'))
+            return
+        
+        # Retrieve item tags
+        items = list(tree.iter(tag='item'))
+        
+        if not items:
+            print("No items found in XML")
+            line_bot_api.reply_message(event.reply_token, 
+                TextSendMessage(text='發票 XML 中沒有找到任何項目'))
+            return
+        
+        print(f"Found {len(items)} items in XML")
+        
+        # Check if the first item has enough elements
+        if len(items[0]) < 4:
+            print(f"First item has only {len(items[0])} elements")
+            line_bot_api.reply_message(event.reply_token, 
+                TextSendMessage(text='發票資料格式不完整'))
+            return
+        
+        # Extract the period and winning numbers from the first item
+        title_element = items[0][0]
+        ptext_element = items[0][3]
+        
+        if title_element is None or title_element.text is None:
+            print("Title element is None or has no text")
+            line_bot_api.reply_message(event.reply_token, 
+                TextSendMessage(text='無法取得發票期數資訊'))
+            return
+            
+        if ptext_element is None or ptext_element.text is None:
+            print("Winning numbers element is None or has no text")
+            line_bot_api.reply_message(event.reply_token, 
+                TextSendMessage(text='無法取得中獎號碼資訊'))
+            return
+        
+        title = title_element.text  # Period
+        ptext = ptext_element.text  # Winning numbers
+        
+        print(f"Title: {title}")
+        print(f"Winning numbers (first 100 chars): {ptext[:100]}")
+        
+        # Clean up the winning numbers text
+        ptext = ptext.replace('<p>', '').replace('</p>', '\n')
+        
+        # Prepare the message to be sent
+        message = title + '月\n' + ptext[:-1]  # Remove the last newline character
+        
+        # Check if message is too long for LINE (limit is 2000 characters)
+        if len(message) > 2000:
+            message = message[:1950] + '\n...(資訊過長，已截斷)'
+        
+        # Send the message using the LINE Bot API
+        line_bot_api.reply_message(event.reply_token, TextSendMessage(text=message))
+        
+    except requests.exceptions.ConnectTimeout:
+        print("Connection timeout error")
+        line_bot_api.reply_message(event.reply_token, 
+            TextSendMessage(text='連線發票 API 超時，請稍後再試'))
+    except requests.exceptions.ConnectionError:
+        print("Connection error")
+        line_bot_api.reply_message(event.reply_token, 
+            TextSendMessage(text='無法連線到發票 API，請檢查網路連線'))
+    except requests.exceptions.RequestException as req_error:
+        print(f"Request error: {req_error}")
+        line_bot_api.reply_message(event.reply_token, 
+            TextSendMessage(text='發票 API 請求失敗'))
+    except Exception as e:
+        # Log the exception for debugging purposes
+        print(f"Unexpected error occurred: {e}")
+        print(f"Error type: {type(e).__name__}")
+        
+        # Send an error message back to the user with more specific information
+        line_bot_api.reply_message(event.reply_token, 
+            TextSendMessage(text='抱歉，沒有找到本期中獎號碼的資訊。請稍後再試。'))
+
+def showOld(event):
+    """
+    Fetches the previous winning invoice numbers from the external service and sends them to the user.
+
+    Parameters:
+    - event: The LINE event object containing the reply token and message details.
+    """
+    try:
+        # Add timeout and headers for better reliability
+        headers = {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+        }
+        
+        # Fetch the XML content from the specified URL with timeout
+        response = requests.get('https://invoice.etax.nat.gov.tw/invoice.xml', 
+                               headers=headers, 
+                               timeout=10)
+        
+        # Check if the response is successful
+        if response.status_code != 200:
+            print(f"HTTP Error: {response.status_code}")
+            line_bot_api.reply_message(event.reply_token, 
+                TextSendMessage(text=f'發票 API 回應錯誤，狀態碼：{response.status_code}'))
+            return
+        
+        # Check if response content is not empty
+        if not response.text.strip():
+            print("Empty response received")
+            line_bot_api.reply_message(event.reply_token, 
+                TextSendMessage(text='發票 API 回應內容為空'))
+            return
+        
+        # Parse the XML content to extract relevant information
+        try:
+            tree = ET.fromstring(response.text)
+        except ET.ParseError as parse_error:
+            print(f"XML Parse Error: {parse_error}")
+            line_bot_api.reply_message(event.reply_token, 
+                TextSendMessage(text='發票資料 XML 格式解析錯誤'))
+            return
+        
+        # Retrieve item tags
+        items = list(tree.iter(tag='item'))
+        
+        if not items:
+            print("No items found in XML")
+            line_bot_api.reply_message(event.reply_token, 
+                TextSendMessage(text='發票 XML 中沒有找到任何項目'))
+            return
+        
+        # Check if we have at least 3 items for previous periods
+        if len(items) < 3:
+            print(f"Not enough items for previous periods, found: {len(items)}")
+            line_bot_api.reply_message(event.reply_token, 
+                TextSendMessage(text='發票歷史資料不足'))
+            return
+        
+        # Initialize the message string
+        message = ""
+        
+        # Loop through the second and third items to extract title and winning numbers
+        for i in range(1, 3):
+            # Check if the item has enough elements
+            if len(items[i]) < 4:
+                print(f"Item {i} has only {len(items[i])} elements")
+                continue
+                
+            title_element = items[i][0]
+            ptext_element = items[i][3]
+            
+            if title_element is None or title_element.text is None:
+                print(f"Title element for item {i} is None or has no text")
+                continue
+                
+            if ptext_element is None or ptext_element.text is None:
+                print(f"Winning numbers element for item {i} is None or has no text")
+                continue
+            
+            title = title_element.text  # Period
+            ptext = ptext_element.text  # Winning numbers
+            
+            # Clean up the winning numbers text
+            ptext = ptext.replace('<p>', '').replace('</p>', '\n')
+            
+            # Append the title and winning numbers to the message
+            message += f"{title}:\n{ptext}\n"
+        
+        # Check if we got any valid data
+        if not message.strip():
+            print("No valid previous period data found")
+            line_bot_api.reply_message(event.reply_token, 
+                TextSendMessage(text='無法取得前期中獎號碼資訊'))
+            return
+        
+        # Remove the last newline character for cleaner output
+        message = message[:-1]
+        
+        # Check if message is too long for LINE (limit is 2000 characters)
+        if len(message) > 2000:
+            message = message[:1950] + '\n...(資訊過長，已截斷)'
+        
+        # Send the message using the LINE Bot API
+        line_bot_api.reply_message(event.reply_token, TextSendMessage(text=message))
+        
+    except requests.exceptions.ConnectTimeout:
+        print("Connection timeout error")
+        line_bot_api.reply_message(event.reply_token, 
+            TextSendMessage(text='連線發票 API 超時，請稍後再試'))
+    except requests.exceptions.ConnectionError:
+        print("Connection error")
+        line_bot_api.reply_message(event.reply_token, 
+            TextSendMessage(text='無法連線到發票 API，請檢查網路連線'))
+    except requests.exceptions.RequestException as req_error:
+        print(f"Request error: {req_error}")
+        line_bot_api.reply_message(event.reply_token, 
+            TextSendMessage(text='發票 API 請求失敗'))
+    except Exception as e:
+        # Log the exception for debugging purposes
+        print(f"Unexpected error occurred in showOld: {e}")
+        print(f"Error type: {type(e).__name__}")
+        
+        # Send an error message back to the user
+        line_bot_api.reply_message(event.reply_token, 
+            TextSendMessage(text='抱歉，沒有找到前期中獎號碼的資訊。請稍後再試。'))
+
+def show3digit(event, mtext):
+    """
+    Fetches the winning invoice numbers from the external service and checks if the provided
+    invoice number matches any winning numbers.
+
+    Parameters:
+    - event: The LINE event object containing the reply token and message details.
+    - mtext: The invoice number input by the user.
+    """
+    try:
+        # Add timeout and headers for better reliability
+        headers = {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+        }
+        
+        # Fetch the XML content from the specified URL with timeout
+        response = requests.get('https://invoice.etax.nat.gov.tw/invoice.xml', 
+                               headers=headers, 
+                               timeout=10)
+        
+        # Check if the response is successful
+        if response.status_code != 200:
+            print(f"HTTP Error: {response.status_code}")
+            line_bot_api.reply_message(event.reply_token, 
+                TextSendMessage(text=f'發票 API 回應錯誤，狀態碼：{response.status_code}'))
+            return
+        
+        # Check if response content is not empty
+        if not response.text.strip():
+            print("Empty response received")
+            line_bot_api.reply_message(event.reply_token, 
+                TextSendMessage(text='發票 API 回應內容為空'))
+            return
+        
+        # Parse the XML content to extract relevant information
+        try:
+            tree = ET.fromstring(response.text)
+        except ET.ParseError as parse_error:
+            print(f"XML Parse Error: {parse_error}")
+            line_bot_api.reply_message(event.reply_token, 
+                TextSendMessage(text='發票資料 XML 格式解析錯誤'))
+            return
+        
+        # Retrieve item tags
+        items = list(tree.iter(tag='item'))
+        
+        if not items:
+            print("No items found in XML")
+            line_bot_api.reply_message(event.reply_token, 
+                TextSendMessage(text='發票 XML 中沒有找到任何項目'))
+            return
+        
+        # Check if the first item has enough elements
+        if len(items[0]) < 4:
+            print(f"First item has only {len(items[0])} elements")
+            line_bot_api.reply_message(event.reply_token, 
+                TextSendMessage(text='發票資料格式不完整'))
+            return
+        
+        # Extract winning numbers from the first item
+        ptext_element = items[0][3]
+        
+        if ptext_element is None or ptext_element.text is None:
+            print("Winning numbers element is None or has no text")
+            line_bot_api.reply_message(event.reply_token, 
+                TextSendMessage(text='無法取得中獎號碼資訊'))
+            return
+        
+        ptext = ptext_element.text  # Winning numbers
+        
+        # Clean up the winning numbers text
+        ptext = ptext.replace('<p>', '').replace('</p>', '\n').strip()
+        
+        print(f"Input: {mtext}")
+        print(f"Winning numbers text: {ptext}")
+        
+        # Initialize lists for prize numbers
+        prizelist = []  # Special prize or grand prize last three digits
+        first_prizes = []  # First prize (頭獎) numbers
+        
+        # Parse the new format: 特別獎：64557267 特獎：64808075 頭獎：04322277、07903676、98883497
+        lines = ptext.split('\n')
+        prize_text = ' '.join(lines).strip()
+        
+        # Extract special prize
+        if '特別獎：' in prize_text:
+            special_start = prize_text.find('特別獎：') + 3
+            special_end = prize_text.find(' ', special_start)
+            if special_end == -1:
+                special_end = len(prize_text)
+            special_prize = prize_text[special_start:special_end].strip()
+            if len(special_prize) >= 3:
+                prizelist.append(special_prize[-3:])  # Last 3 digits
+                print(f"Special prize: {special_prize}, last 3 digits: {special_prize[-3:]}")
+        
+        # Extract grand prize
+        if '特獎：' in prize_text:
+            grand_start = prize_text.find('特獎：') + 3
+            grand_end = prize_text.find(' ', grand_start)
+            if grand_end == -1:
+                grand_end = len(prize_text)
+            grand_prize = prize_text[grand_start:grand_end].strip()
+            if len(grand_prize) >= 3:
+                prizelist.append(grand_prize[-3:])  # Last 3 digits
+                print(f"Grand prize: {grand_prize}, last 3 digits: {grand_prize[-3:]}")
+        
+        # Extract first prizes (頭獎)
+        if '頭獎：' in prize_text:
+            first_start = prize_text.find('頭獎：') + 3
+            first_part = prize_text[first_start:].strip()
+            # Split by commas or 、
+            first_numbers = [num.strip() for num in first_part.replace('、', ',').split(',') if num.strip()]
+            for num in first_numbers:
+                if len(num) >= 3:
+                    first_prizes.append(num[-3:])  # Last 3 digits
+            print(f"First prizes: {first_numbers}, last 3 digits: {first_prizes}")
+        
+        print(f"Special/Grand prizes last 3 digits: {prizelist}")
+        print(f"First prizes last 3 digits: {first_prizes}")
+        
+        # Check if the provided invoice number matches any winning numbers
+        if mtext in prizelist:
+            message = '符合特別獎或特獎後三碼!'
+        elif mtext in first_prizes:
+            message = '恭喜!符合頭獎後三碼,至少中六獎!'
+        else:
+            message = '很可惜,未中獎。請輸入下一張發票最後三碼。'
+        
+        # Send the response message using the LINE Bot API
+        line_bot_api.reply_message(event.reply_token, TextSendMessage(text=message))
+        
+    except requests.exceptions.ConnectTimeout:
+        print("Connection timeout error")
+        line_bot_api.reply_message(event.reply_token, 
+            TextSendMessage(text='連線發票 API 超時，請稍後再試'))
+    except requests.exceptions.ConnectionError:
+        print("Connection error")
+        line_bot_api.reply_message(event.reply_token, 
+            TextSendMessage(text='無法連線到發票 API，請檢查網路連線'))
+    except requests.exceptions.RequestException as req_error:
+        print(f"Request error: {req_error}")
+        line_bot_api.reply_message(event.reply_token, 
+            TextSendMessage(text='發票 API 請求失敗'))
+    except Exception as e:
+        # Log the exception for debugging purposes
+        print(f"Unexpected error occurred in show3digit: {e}")
+        print(f"Error type: {type(e).__name__}")
+        
+        # Send an error message back to the user
+        line_bot_api.reply_message(event.reply_token, 
+            TextSendMessage(text='抱歉，對獎功能暫時無法使用。請稍後再試。'))
